@@ -337,8 +337,10 @@
     }
     
     .prompt-line {
-      display: block;
-      position: relative;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
       margin-bottom: 16px;
       padding-bottom: 16px;
       border-bottom: 1px solid var(--border-subtle);
@@ -351,8 +353,13 @@
       border-bottom: none;
     }
     
+    .prompt-line-content {
+      flex: 1;
+      min-width: 0;
+    }
+    
     .prompt-line-top {
-      display: block;
+      display: inline;
     }
     
     .prompt-line-bottom {
@@ -394,14 +401,8 @@
       color: var(--text-muted);
     }
     
-    .prompt-line-button-wrapper {
-      display: flex;
-      justify-content: flex-end;
-      margin-top: 8px;
-    }
-    
     .btn-redraw { 
-      position: static;
+      flex-shrink: 0;
       width: 30px; 
       height: 30px; 
       font-size: 13px;
@@ -544,47 +545,47 @@
   <div class="prompt-area">
     <!-- 维度行 -->
     <div class="prompt-line dim" id="lineDim">
-      <div class="prompt-line-top">
-        <span class="prompt-prefix">它在意</span>
-        <span class="prompt-main dim" id="mainDim">「问题」</span>
+      <div class="prompt-line-content">
+        <div class="prompt-line-top">
+          <span class="prompt-prefix">它在意</span>
+          <span class="prompt-main dim" id="mainDim">「问题」</span>
+        </div>
+        <div class="prompt-line-bottom">
+          <span class="prompt-suffix" id="suffixDim">——</span>
+        </div>
       </div>
-      <div class="prompt-line-bottom">
-        <span class="prompt-suffix" id="suffixDim">——</span>
-      </div>
-      <div class="prompt-line-button-wrapper">
-        <button class="btn-redraw dim" onclick="drawDimension()" title="重抽维度">🔄</button>
-      </div>
+      <button class="btn-redraw dim" onclick="drawDimension()" title="重抽维度">🔄</button>
     </div>
 
     <!-- 能力行 -->
     <div class="prompt-line abi" id="lineAbi">
-      <div class="prompt-line-top">
-        <span class="prompt-prefix">拥有</span>
-        <span class="prompt-main abi" id="mainAbi">「能力」</span>
-        <span class="prompt-suffix-short" id="suffixAbiShort">的能力，</span>
+      <div class="prompt-line-content">
+        <div class="prompt-line-top">
+          <span class="prompt-prefix">拥有</span>
+          <span class="prompt-main abi" id="mainAbi">「能力」</span>
+          <span class="prompt-suffix-short" id="suffixAbiShort">的能力，</span>
+        </div>
+        <div class="prompt-line-bottom">
+          <span class="prompt-suffix" id="suffixAbi"></span>
+        </div>
       </div>
-      <div class="prompt-line-bottom">
-        <span class="prompt-suffix" id="suffixAbi"></span>
-      </div>
-      <div class="prompt-line-button-wrapper">
-        <button class="btn-redraw abi" onclick="drawAbility()" title="重抽能力">🔄</button>
-      </div>
+      <button class="btn-redraw abi" onclick="drawAbility()" title="重抽能力">🔄</button>
     </div>
 
 
     <!-- 人格行 -->
     <div class="prompt-line per" id="linePer">
-      <div class="prompt-line-top">
-        <span class="prompt-prefix">像</span>
-        <span class="prompt-main per" id="mainPer">「人格」</span>
-        <span class="prompt-suffix-short" id="suffixPerShort">一样，</span>
+      <div class="prompt-line-content">
+        <div class="prompt-line-top">
+          <span class="prompt-prefix">像</span>
+          <span class="prompt-main per" id="mainPer">「人格」</span>
+          <span class="prompt-suffix-short" id="suffixPerShort">一样，</span>
+        </div>
+        <div class="prompt-line-bottom">
+          <span class="prompt-suffix" id="suffixPer"></span>
+        </div>
       </div>
-      <div class="prompt-line-bottom">
-        <span class="prompt-suffix" id="suffixPer"></span>
-      </div>
-      <div class="prompt-line-button-wrapper">
-        <button class="btn-redraw per" onclick="drawPersona()" title="重抽人格">🔄</button>
-      </div>
+      <button class="btn-redraw per" onclick="drawPersona()" title="重抽人格">🔄</button>
     </div>
 
     <div class="prompt-question">
