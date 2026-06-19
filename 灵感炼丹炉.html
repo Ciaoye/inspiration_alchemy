@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>灵感炼丹炉 · AI Agent 卡牌</title>
+<style>
+  :root {
+    --bg-page: #fafafa;
+    --bg-card: #ffffff;
+    --text-primary: #1a1a1a;
+    --text-secondary: #666666;
+    --text-muted: #999999;
+    
+    --neon-pink: #e83d8f;
+    --neon-blue: #0ea5e9;
+    --neon-green: #10b981;
+    
+    --gradient-pink: linear-gradient(135deg, #e83d8f 0%, #7c3aed 100%);
+    
+    --border-subtle: rgba(0, 0, 0, 0.12);
+    --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.06);
+    --shadow-btn: 0 4px 20px rgba(232, 61, 143, 0.25);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: var(--bg-page);
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: 
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(232, 61, 143, 0.05) 0%, transparent 50%),
+      radial-gradient(ellipse 60% 40% at 80% 100%, rgba(14, 165, 233, 0.04) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .signal-rings {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.4;
+  }
+
+  .signal-ring {
+    position: absolute;
+    border-radius: 50%;
+    border: 1px solid;
+    opacity: 0;
+    animation: signal-pulse 6s ease-out infinite;
+  }
+
+  .signal-ring:nth-child(1) { width: 400px; height: 400px; border-color: rgba(232, 61, 143, 0.15); animation-delay: 0s; }
+  .signal-ring:nth-child(2) { width: 600px; height: 600px; border-color: rgba(14, 165, 233, 0.1); animation-delay: 2s; }
+  .signal-ring:nth-child(3) { width: 800px; height: 800px; border-color: rgba(124, 58, 237, 0.06); animation-delay: 4s; }
+
+  @keyframes signal-pulse {
+    0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.5; }
+    100% { transform: translate(-50%, -50%) scale(1.2); opacity: 0; }
+  }
+
+  .container {
+    max-width: 680px;
+    width: 100%;
+    position: relative;
+    z-index: 1;
+  }
+
+  .header-pill {
+    display: inline-block;
+    background: rgba(232, 61, 143, 0.08);
+    border: 1px solid rgba(232, 61, 143, 0.2);
+    color: var(--neon-pink);
+    font-size: 12px;
+    padding: 6px 16px;
+    border-radius: 20px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 32px;
+    letter-spacing: 1px;
+    text-align: left;
+  }
+
+  /* 引导语区域 */
+  .prompt-area {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 24px;
+    padding: 32px 36px;
+    box-shadow: var(--shadow-card);
+    margin-bottom: 24px;
+  }
+
+  /* 每行 */
+  .prompt-line {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border-subtle);
+    transition: all 0.3s ease;
+  }
+
+  .prompt-line:last-of-type {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+  }
+
+  .prompt-line.active.dim, 
+  .prompt-line.active.abi, 
+  .prompt-line.active.per {
+    margin: -8px -12px;
+    padding: 8px 12px 16px;
+    border-radius: 12px;
+    border-bottom: none;
+  }
+
+  .prompt-prefix {
+    font-size: 18px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .prompt-main {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-muted);
+    transition: all 0.3s ease;
+    white-space: nowrap;
+  }
+
+  .prompt-main.dim { color: var(--neon-pink); }
+  .prompt-main.abi { color: var(--neon-blue); }
+  .prompt-main.per { color: var(--neon-green); }
+
+  .prompt-suffix {
+    font-size: 18px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+  }
+
+  /* 桌面端：正常的flex布局 */
+  .prompt-line {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border-subtle);
+    transition: all 0.3s ease;
+  }
+
+  .prompt-line:last-of-type {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+  }
+
+  .prompt-line.active.dim, 
+  .prompt-line.active.abi, 
+  .prompt-line.active.per {
+    margin: -8px -12px;
+    padding: 8px 12px 16px;
+    border-radius: 12px;
+    border-bottom: none;
+  }
+
+  /* 重抽按钮 */
+  .btn-redraw {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-card);
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    font-size: 14px;
+    opacity: 0.5;
+    margin-left: auto;
+  }
+
+  .btn-redraw:hover {
+    opacity: 1;
+    transform: rotate(180deg);
+  }
+
+  .btn-redraw.dim:hover { border-color: var(--neon-pink); color: var(--neon-pink); }
+  .btn-redraw.abi:hover { border-color: var(--neon-blue); color: var(--neon-blue); }
+  .btn-redraw.per:hover { border-color: var(--neon-green); color: var(--neon-green); }
+
+  /* 底部问句 */
+  .prompt-question {
+    font-size: 18px;
+    color: var(--text-secondary);
+    margin-top: 20px;
+    line-height: 1.6;
+  }
+
+  /* 抽三张按钮 */
+  .btn-row {
+    display: flex;
+    justify-content: flex-start;
+    margin-top: 28px;
+  }
+
+  .btn-draw-all {
+    padding: 14px 32px;
+    border-radius: 28px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    background: rgba(232, 61, 143, 0.08);
+    color: var(--neon-pink);
+    border: 1px solid rgba(232, 61, 143, 0.2);
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .btn-draw-all:hover {
+    background: rgba(232, 61, 143, 0.12);
+    border-color: rgba(232, 61, 143, 0.3);
+  }
+
+  .footer {
+    margin-top: 48px;
+    text-align: left;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  @keyframes line-shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-4px); }
+    40% { transform: translateX(4px); }
+    60% { transform: translateX(-3px); }
+    80% { transform: translateX(3px); }
+  }
+
+  .prompt-line.shaking {
+    animation: line-shake 0.4s ease-in-out;
+  }
+
+  @media (min-width: 768px) {
+    .container {
+      max-width: 720px;
+    }
+    
+    h1 {
+      font-size: 30px;
+    }
+    
+    .prompt-area {
+      padding: 36px 40px;
+    }
+    
+    .prompt-prefix, .prompt-main, .prompt-suffix {
+      font-size: 18px;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    body {
+      padding: 60px 40px;
+    }
+    
+    .container {
+      max-width: 760px;
+    }
+    
+    h1 {
+      font-size: 32px;
+    }
+    
+    .prompt-area {
+      padding: 40px 44px;
+    }
+    
+    .footer {
+      text-align: center;
+    }
+  }
+
+  @media (max-width: 600px) {
+    body { padding: 24px 12px; }
+    
+    .container { max-width: 100%; }
+    
+    .header-pill {
+      font-size: 11px;
+      padding: 5px 12px;
+      margin-bottom: 12px;
+    }
+    
+    h1 { 
+      font-size: 22px; 
+      margin-bottom: 24px;
+      letter-spacing: 0.5px;
+    }
+    
+    .prompt-area { 
+      padding: 20px 16px;
+      border-radius: 20px;
+    }
+    
+    .prompt-line {
+      display: block;
+      position: relative;
+      margin-bottom: 16px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    
+    /* 最后一行去掉边框 */
+    .prompt-line:last-of-type {
+      margin-bottom: 0;
+      padding-bottom: 0;
+      border-bottom: none;
+    }
+    
+    .prompt-line-top {
+      display: block;
+    }
+    
+    .prompt-line-bottom {
+      display: block;
+      margin-top: 4px;
+    }
+    
+    .prompt-line.active.dim, 
+    .prompt-line.active.abi, 
+    .prompt-line.active.per {
+      margin: -8px -12px;
+      padding: 8px 12px 16px;
+      border-radius: 12px;
+      border-bottom: none;
+    }
+    
+    .prompt-prefix { 
+      font-size: 17px;
+      white-space: nowrap;
+      font-weight: 500;
+    }
+    
+    .prompt-main {
+      font-size: 17px;
+      font-weight: 600;
+      white-space: normal;
+      word-break: keep-all;
+    }
+    
+    .prompt-suffix-short {
+      font-size: 17px;
+      white-space: nowrap;
+    }
+    
+    .prompt-suffix { 
+      font-size: 16px;
+      white-space: normal;
+      line-height: 1.5;
+      color: var(--text-muted);
+    }
+    
+    .prompt-line-button-wrapper {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 8px;
+    }
+    
+    .btn-redraw { 
+      position: static;
+      width: 30px; 
+      height: 30px; 
+      font-size: 13px;
+      margin-left: 0;
+    }
+    
+    .prompt-question { 
+      font-size: 15px;
+      margin-top: 20px;
+      line-height: 1.5;
+    }
+    
+    .btn-row {
+      margin-top: 24px;
+    }
+    
+    .btn-draw-all {
+      padding: 12px 24px;
+      font-size: 14px;
+      width: 100%;
+      justify-content: center;
+    }
+    
+    .footer {
+      margin-top: 32px;
+      font-size: 11px;
+    }
+    
+    .signal-ring:nth-child(1) { width: 300px; height: 300px; }
+    .signal-ring:nth-child(2) { width: 450px; height: 450px; }
+    .signal-ring:nth-child(3) { width: 600px; height: 600px; }
+  }
+
+  /* 桌面端保持原有布局 */
+  @media (min-width: 601px) {
+    .prompt-line-top {
+      display: contents; /* 让内容融入父容器 */
+    }
+    
+    .prompt-line-bottom {
+      display: contents; /* 让内容融入父容器 */
+    }
+    
+    .prompt-line-button-wrapper {
+      display: contents; /* 让按钮融入父容器 */
+    }
+    
+    .prompt-suffix-short {
+      display: none;
+    }
+    
+    /* 桌面端维度行的特殊处理 */
+    #lineDim .prompt-line-bottom {
+      display: contents;
+    }
+    
+    #lineDim .prompt-suffix-short {
+      display: none;
+    }
+    
+    /* 桌面端按钮保持flex布局 */
+    .btn-redraw {
+      position: static;
+      margin-left: auto;
+    }
+  }
+
+  @media (max-width: 380px) {
+    body { padding: 16px 10px; }
+    
+    h1 { font-size: 20px; }
+    
+    .prompt-area { padding: 16px 12px; }
+    
+    .prompt-prefix, .prompt-main, .prompt-suffix {
+      font-size: 14px;
+    }
+    
+    .btn-redraw {
+      width: 26px;
+      height: 26px;
+    }
+    
+    .prompt-question { font-size: 14px; }
+    
+    .btn-draw-all {
+      padding: 10px 20px;
+      font-size: 13px;
+    }
+    
+    .signal-ring:nth-child(1) { width: 250px; height: 250px; }
+    .signal-ring:nth-child(2) { width: 350px; height: 350px; }
+    .signal-ring:nth-child(3) { width: 450px; height: 450px; }
+  }
+
+  /* 防止文本溢出 */
+  @media (max-width: 360px) {
+    .prompt-line {
+      gap: 2px;
+    }
+    
+    .prompt-suffix {
+      font-size: 13px;
+    }
+  }
+  
+  /* 横屏手机适配 */
+  @media (max-height: 500px) and (orientation: landscape) {
+    body {
+      padding: 16px 20px;
+      align-items: flex-start;
+    }
+    
+    .container {
+      max-width: 90%;
+    }
+    
+    .footer {
+      margin-top: 20px;
+    }
+    
+    .signal-rings {
+      display: none;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="signal-rings" aria-hidden="true">
+  <div class="signal-ring"></div>
+  <div class="signal-ring"></div>
+  <div class="signal-ring"></div>
+</div>
+
+<div class="container">
+  <span class="header-pill">AI Agent 灵感派对</span>
+
+  <h1>如果一个Agent，</h1>
+
+  <div class="prompt-area">
+    <!-- 维度行 -->
+    <div class="prompt-line dim" id="lineDim">
+      <div class="prompt-line-top">
+        <span class="prompt-prefix">它在意</span>
+        <span class="prompt-main dim" id="mainDim">「问题」</span>
+      </div>
+      <div class="prompt-line-bottom">
+        <span class="prompt-suffix" id="suffixDim">——</span>
+      </div>
+      <div class="prompt-line-button-wrapper">
+        <button class="btn-redraw dim" onclick="drawDimension()" title="重抽维度">🔄</button>
+      </div>
+    </div>
+
+    <!-- 能力行 -->
+    <div class="prompt-line abi" id="lineAbi">
+      <div class="prompt-line-top">
+        <span class="prompt-prefix">拥有</span>
+        <span class="prompt-main abi" id="mainAbi">「能力」</span>
+        <span class="prompt-suffix-short" id="suffixAbiShort">的能力，</span>
+      </div>
+      <div class="prompt-line-bottom">
+        <span class="prompt-suffix" id="suffixAbi"></span>
+      </div>
+      <div class="prompt-line-button-wrapper">
+        <button class="btn-redraw abi" onclick="drawAbility()" title="重抽能力">🔄</button>
+      </div>
+    </div>
+
+
+    <!-- 人格行 -->
+    <div class="prompt-line per" id="linePer">
+      <div class="prompt-line-top">
+        <span class="prompt-prefix">像</span>
+        <span class="prompt-main per" id="mainPer">「人格」</span>
+        <span class="prompt-suffix-short" id="suffixPerShort">一样，</span>
+      </div>
+      <div class="prompt-line-bottom">
+        <span class="prompt-suffix" id="suffixPer"></span>
+      </div>
+      <div class="prompt-line-button-wrapper">
+        <button class="btn-redraw per" onclick="drawPersona()" title="重抽人格">🔄</button>
+      </div>
+    </div>
+
+    <div class="prompt-question">
+      它会如何帮助你和他人？
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn-draw-all" onclick="drawAll()">
+      <span>🔄</span> 重抽 3 张
+    </button>
+  </div>
+
+  <div class="footer">俏也 @ AI Agent 共学 · 灵感派对</div>
+</div>
+
+<script>
+// ====== 牌组数据 ======
+
+const dimensionDeck = [
+  { main: "我深夜不睡的脑子", suffix: "失眠、反刍、睡前思绪停不下来" },
+  { main: "我纠结的选择", suffix: "在两个选项之间反复横跳" },
+  { main: "我想被理解", suffix: "觉得自己很难被解释清楚" },
+  { main: "我想创造点什么", suffix: "有创作冲动，还没找到出口" },
+  { main: "我反复在做的事", suffix: "每周、每天机械重复的劳动" },
+  { main: "我第一次做的事", suffix: "第一次组局、办活动、换工作" },
+  { main: "我说不出口的话", suffix: "想表达但每次都咽回去" },
+  { main: "我的注意力", suffix: "容易分心、切换、被打断" },
+  { main: "我的记忆", suffix: "那些想留住却总在流失的东西" },
+  { main: "我的睡眠", suffix: "夜晚与恢复能力" },
+  { main: "我的情绪", suffix: "那些难以表达和理解的感受" },
+  { main: "我的身体信号", suffix: "疲惫、疼痛、疾病与预警" },
+  { main: "我的灵感", suffix: "转瞬即逝的念头与火花" },
+  { main: "我的习惯", suffix: "日复一日塑造我的东西" },
+  { main: "我的时间", suffix: "我究竟把生命花在哪里" },
+  { main: "我的成长", suffix: "我正在成为谁" },
+  { main: "我的学习", suffix: "输入、理解与掌握" },
+  { main: "我的职业发展", suffix: "工作与人生方向" },
+  { main: "我的财务状况", suffix: "收入、支出与安全感" },
+  { main: "我的消费习惯", suffix: "我如何购买、拥有与舍弃" },
+  { main: "我的线上生活", suffix: "软件、账号与数字痕迹" },
+  { main: "我的梦想", suffix: "尚未实现的愿望" },
+  { main: "我的价值观", suffix: "什么对我真正重要" },
+  { main: "我的身份认同", suffix: "我是谁" },
+  { main: "我的过去", suffix: "那些塑造我的经历" },
+  { main: "我的未来", suffix: "我正在走向哪里" },
+  { main: "我的意义感", suffix: "什么让我觉得这一切值得" },
+  { main: "我的归属感", suffix: "我属于哪里" },
+  { main: "自由", suffix: "如何选择自己想过的人生" },
+  { main: "信任", suffix: "人与人如何建立连接" },
+  { main: "ADHD", suffix: "启动困难、拖延、分心与执行力" },
+  { main: "父母老了", suffix: "健康、照护与角色转换" },
+  { main: "老龄化", suffix: "人如何面对变老这件事" },
+  { main: "我的家族故事", suffix: "代代相传的经历与记忆" },
+  { main: "我的家庭记忆", suffix: "照片、故事与日常片段" },
+  { main: "我的家庭关系", suffix: "理解、冲突与连接" },
+  { main: "我的孩子", suffix: "陪伴一个生命长大" },
+  { main: "我的宠物", suffix: "与非人生命的关系" },
+  { main: "我的友谊", suffix: "长期陪伴与共同成长" },
+  { main: "我的亲密关系", suffix: "爱、依赖与边界" },
+  { main: "我的邻里关系", suffix: "身边的陌生人与熟人" },
+  { main: "我的新朋友", suffix: "新的相遇与连接" },
+  { main: "我的弱连接", suffix: "那些偶尔联系却带来机会的人" },
+  { main: "我想找到同类", suffix: "那些真正理解我的人" },
+  { main: "一起做事的人", suffix: "合作、分工与共同创造" },
+  { main: "我的同伴支持", suffix: "一起前行的人" },
+  { main: "我属于哪里", suffix: "社群、身份与归属感" },
+  { main: "家务这件小事", suffix: "隐形劳动、分配与理解" },
+  { main: "我想认识附近", suffix: "路过很多次却从未真正了解" },
+  { main: "社区的公共空间", suffix: "人们相遇、停留与交流的地方" },
+  { main: "菜市场里的学问", suffix: "食物、季节与生活智慧" },
+  { main: "第一次来这个城市的人", suffix: "新朋友如何被接住" },
+  { main: "我生活的社区", suffix: "身边的人与空间" },
+  { main: "我生活的城市", suffix: "城市如何塑造生活" },
+  { main: "我探索的新地方", suffix: "陌生地点与发现" },
+  { main: "我的住房环境", suffix: "居住、空间与归属感" },
+  { main: "我的运动习惯", suffix: "身体如何被使用" },
+  { main: "我的饮食习惯", suffix: "每天摄入什么" },
+  { main: "城市记忆", suffix: "属于一座城市的故事" },
+  { main: "无障碍环境", suffix: "被忽视的需求" },
+  { main: "夜间生活", suffix: "太阳落山后的另一种城市" },
+  { main: "当城市发生变化", suffix: "更新、拆迁、危机与重建" },
+  { main: "教育的另一种可能", suffix: "好奇心、自主性与成长" },
+  { main: "终身学习", suffix: "离开学校之后如何继续学习" },
+  { main: "教育公平", suffix: "不同人获得机会的差异" },
+  { main: "技能成长", suffix: "能力如何形成与积累" },
+  { main: "知识传承", suffix: "经验如何流动" },
+  { main: "新行业入门", suffix: "从零开始进入陌生领域" },
+  { main: "职业转型", suffix: "人生方向的变化" },
+  { main: "团队协作", suffix: "多人共同完成复杂事情" },
+  { main: "项目管理", suffix: "资源、时间与目标" },
+  { main: "求职招聘", suffix: "找人和被找到" },
+  { main: "创业探索", suffix: "创造新的价值" },
+  { main: "自由职业", suffix: "自我管理与生存" },
+  { main: "自媒体创作", suffix: "持续表达与传播" },
+  { main: "数字鸿沟", suffix: "被技术落下的人" },
+  { main: "AI 时代", suffix: "人与智能体如何共同生活" },
+  { main: "算法推荐", suffix: "看见什么由谁决定" },
+  { main: "信息茧房", suffix: "世界越来越窄了吗" },
+  { main: "隐私", suffix: "什么属于自己" },
+  { main: "数据所有权", suffix: "数据归谁所有" },
+  { main: "自动化", suffix: "人与机器如何分工" },
+  { main: "技术伦理", suffix: "能做与该做之间" },
+  { main: "网络暴力", suffix: "数字空间中的伤害" },
+  { main: "平台权力", suffix: "谁掌握着入口与规则" },
+  { main: "气候变化", suffix: "全球变化如何影响日常生活" },
+  { main: "性别平等", suffix: "偏见与结构问题" },
+  { main: "循环不是口号", suffix: "闲置、浪费与资源流动" },
+  { main: "食品安全", suffix: "食物从哪里来" },
+  { main: "生物多样性", suffix: "生命为何如此丰富" },
+  { main: "可持续农业", suffix: "与土地建立关系" },
+  { main: "环境保护", suffix: "人与自然的关系" },
+  { main: "未来世代", suffix: "留给下一代的世界" }
+];
+
+const abilityDeck = [
+  { main: "观察", suffix: "看见正在发生什么" },
+  { main: "发现", suffix: "找到原本没注意到的东西" },
+  { main: "识别", suffix: "辨认模式与特征" },
+  { main: "比较", suffix: "发现差异与变化" },
+  { main: "追踪", suffix: "长期记录变化" },
+  { main: "测量", suffix: "把感受变成数据" },
+  { main: "记录", suffix: "留下痕迹" },
+  { main: "保存", suffix: "长期存放" },
+  { main: "回忆", suffix: "找回遗忘的东西" },
+  { main: "归档", suffix: "建立秩序" },
+  { main: "累积", suffix: "让时间产生复利" },
+  { main: "提取", suffix: "从大量信息中抓重点" },
+  { main: "整理", suffix: "让混乱变清晰" },
+  { main: "分类", suffix: "建立边界与结构" },
+  { main: "总结", suffix: "提炼核心" },
+  { main: "解释", suffix: "帮助理解" },
+  { main: "翻译", suffix: "跨语言与语境转换" },
+  { main: "归因", suffix: "理解原因" },
+  { main: "连接", suffix: "建立关系" },
+  { main: "推荐", suffix: "发现相关事物" },
+  { main: "联想", suffix: "跨领域跳跃" },
+  { main: "搭桥", suffix: "连接原本不相交的人和事" },
+  { main: "引介", suffix: "创造新的相遇" },
+  { main: "生成", suffix: "创造新的内容" },
+  { main: "组合", suffix: "重新拼接元素" },
+  { main: "重构", suffix: "改变结构" },
+  { main: "变形", suffix: "换一种形式存在" },
+  { main: "想象", suffix: "探索未发生的世界" },
+  { main: "提问", suffix: "用问题推动思考" },
+  { main: "采访", suffix: "挖掘信息与故事" },
+  { main: "模拟", suffix: "扮演其他角色" },
+  { main: "辩论", suffix: "提供不同视角" },
+  { main: "表达", suffix: "帮助说出来" },
+  { main: "倾听", suffix: "接住未说出口的话" },
+  { main: "预测", suffix: "推测未来可能性" },
+  { main: "评估", suffix: "分析优劣与风险" },
+  { main: "排序", suffix: "确定优先级" },
+  { main: "筛选", suffix: "过滤噪音" },
+  { main: "规划", suffix: "设计路径" },
+  { main: "选择", suffix: "帮助做决定" },
+  { main: "提醒", suffix: "在合适时刻出现" },
+  { main: "督促", suffix: "推动行动" },
+  { main: "执行", suffix: "代替完成任务" },
+  { main: "协调", suffix: "组织资源与关系" },
+  { main: "自动化", suffix: "减少重复劳动" },
+  { main: "触发", suffix: "启动一个过程" },
+  { main: "书写", suffix: "变成文字" },
+  { main: "绘制", suffix: "变成图像" },
+  { main: "讲述", suffix: "变成故事" },
+  { main: "演绎", suffix: "变成表演与体验" },
+  { main: "游戏化", suffix: "变成可参与的游戏" },
+  { main: "传播", suffix: "让更多人看见" },
+  { main: "确认", suffix: "核实信息真假" },
+  { main: "简化", suffix: "去掉不必要的东西" },
+  { main: "暂停", suffix: "在需要时停下来" },
+  { main: "守门", suffix: "过滤骚扰、垃圾、无效信息" },
+  { main: "照护", suffix: "在脆弱时刻给予支持" }
+];
+
+const personaDeck = [
+  // 思想家
+  { main: "老子", suffix: "观察事物如何自然展开，不干预" },
+  { main: "庄子", suffix: "随时切换视角，不被既有框架困住" },
+  { main: "佛陀", suffix: "觉察执念，放下对事物固有不变的认定" },
+  { main: "苏格拉底", suffix: "用提问拆解自以为知道的东西" },
+  { main: "柏拉图", suffix: "在具体事物背后追问不变的理型" },
+  { main: "亚里士多德", suffix: "观察具体事物，从中归纳规律" },
+  { main: "笛卡尔", suffix: "对一切保持怀疑，直到找到不可动摇的基点" },
+  { main: "康德", suffix: "追问认知的边界，按自己给出的法则行动" },
+  { main: "黑格尔", suffix: "在矛盾与冲突中识别发展的动力" },
+  { main: "尼采", suffix: "用自己的生命意志重估一切价值" },
+  { main: "马克思", suffix: "透过个体处境看见背后的系统结构" },
+  { main: "汉娜·阿伦特", suffix: "判断自己的行动如何影响公共世界" },
+  { main: "福柯", suffix: "识别日常中被当作理所当然的规则" },
+  { main: "波伏娃", suffix: "追问身份是被什么塑造的" },
+  { main: "萨特", suffix: "在无意义中通过选择定义自己，承担全部重量" },
+  { main: "加缪", suffix: "承认荒诞不可消除，仍全力活着" },
+  { main: "荣格", suffix: "进入潜意识，辨认驱动自己的原型与故事" },
+  { main: "阿德勒", suffix: "在与他人的联结中实现自我" },
+  { main: "王阳明", suffix: "让知与行在当下同时发生" },
+  { main: "达芬奇", suffix: "在不同领域之间发现连接" },
+  { main: "爱因斯坦", suffix: "用想象力突破框架，再让事实验证" },
+  { main: "图灵", suffix: "重新追问什么是智能" },
+  { main: "达尔文", suffix: "观察微小差异如何在时间中累积成巨变" },
+  { main: "费曼", suffix: "把复杂问题拆解到能讲给外行听" },
+  { main: "鲁迅", suffix: "看见并说出别人不愿看见的现实" },
+  { main: "陶渊明", suffix: "退出过剩的追逐，回到简单真实的生活" },
+  { main: "李白", suffix: "用想象扩展世界的边界" },
+  { main: "杜甫", suffix: "关注普通人的具体处境与命运" },
+  { main: "曹雪芹", suffix: "看见人性中的复杂与矛盾" },
+  { main: "费孝通", suffix: "从具体的人出发理解社会" },
+  { main: "梁漱溟", suffix: "在传统与现代之间找到可延续的路径" },
+  // 角色原型
+  { main: "魔法师", suffix: "主动改变事物原本的形态" },
+  { main: "炼金术士", suffix: "把一种价值转化成另一种价值" },
+  { main: "时空旅人", suffix: "在不同时间尺度之间切换视角" },
+  { main: "吟游诗人", suffix: "用故事连接不同的人" },
+  { main: "守夜人", suffix: "在别人松弛的时候保持清醒" },
+  { main: "地图绘制者", suffix: "把未知领域变成可见路径" },
+  { main: "普罗米修斯", suffix: "把火种带给更多人，承担代价" },
+  { main: "女娲", suffix: "在破碎中修补，让事物重新完整" },
+  { main: "孙悟空", suffix: "挑战既有的规则与权威" },
+  { main: "哪吒", suffix: "自己定义自己的命运" },
+  { main: "诺亚", suffix: "在变化来临前保存关键种子" },
+  { main: "甘道夫", suffix: "在关键时刻给出指引" },
+  { main: "福尔摩斯", suffix: "从忽略的细节中还原真相" },
+  { main: "奇异博士", suffix: "同时推演多种未来" },
+  { main: "收藏家", suffix: "珍惜和保存有意义的东西" },
+  { main: "老朋友", suffix: "一直都在，偶尔出现，不需要解释" },
+  { main: "温柔的陌生人", suffix: "不带预设，好奇地认识你" },
+  // 事物隐喻
+  { main: "一棵树", suffix: "缓慢扎根，一旦站定就不轻易移动" },
+  { main: "一条河流", suffix: "连接沿途的一切" },
+  { main: "一只猫", suffix: "保持好奇，同时保持独立" },
+  { main: "一只蜜蜂", suffix: "把个体的贡献汇聚成整体" },
+  { main: "一只候鸟", suffix: "在不同世界之间迁徙" },
+  { main: "月亮", suffix: "接受周期性的变化" },
+  { main: "太阳", suffix: "持续稳定地输出能量" },
+  { main: "风", suffix: "穿越边界，传播信息" },
+  { main: "火焰", suffix: "点燃改变的可能" },
+  { main: "海洋", suffix: "容纳无数不同的生命" },
+  { main: "一座山", suffix: "在长期尺度上保持稳定" },
+  { main: "一片森林", suffix: "让多样性在同一片土地上生长" },
+  { main: "菌丝网络", suffix: "在看不见的地方建立连接" },
+  { main: "一粒种子", suffix: "把未来的可能性携带在身上" },
+  { main: "一座桥梁", suffix: "连接原本分离的世界" },
+  { main: "一座灯塔", suffix: "为迷路的人提供方向" },
+  { main: "一座图书馆", suffix: "保存知识与记忆" },
+  { main: "一个菜市场", suffix: "让真实的生活持续流动" },
+  { main: "一座花园", suffix: "为成长创造条件" },
+  { main: "一片珊瑚礁", suffix: "支撑复杂生态的形成" },
+  { main: "北极星", suffix: "在混乱中提供稳定的参照" },
+  { main: "一面镜子", suffix: "帮助人看见自己真实的样子" }
+];
+
+// ====== 状态 ======
+let currentDim = null;
+let currentAbi = null;
+let currentPer = null;
+let drawnDimIndices = [];
+let drawnAbiIndices = [];
+let drawnPerIndices = [];
+
+// ====== 辅助函数 ======
+function randomFromDeck(deck, drawnHistory) {
+  if (deck.length === 0) return null;
+  if (drawnHistory.length >= deck.length) drawnHistory = [];
+  const available = deck.map((_, i) => i).filter(i => !drawnHistory.includes(i));
+  if (available.length === 0) return null;
+  const idx = available[Math.floor(Math.random() * available.length)];
+  drawnHistory.push(idx);
+  return { item: deck[idx], index: idx };
+}
+
+function shakeLine(lineId) {
+  const line = document.getElementById(lineId);
+  line.classList.add('shaking');
+  setTimeout(() => line.classList.remove('shaking'), 400);
+}
+
+// ====== 渲染 ======
+function renderPersona() {
+  const line = document.getElementById('linePer');
+  const main = document.getElementById('mainPer');
+  const suffixShort = document.getElementById('suffixPerShort');
+  const suffix = document.getElementById('suffixPer');
+  
+  if (currentPer) {
+    line.classList.add('active');
+    main.textContent = `「${currentPer.main}」`;
+    suffixShort.textContent = '一样，';
+    suffix.textContent = currentPer.suffix;
+  } else {
+    line.classList.remove('active');
+    main.textContent = '「人格」';
+    suffixShort.textContent = '一样，';
+    suffix.textContent = '';
+  }
+}
+
+function renderAbility() {
+  const line = document.getElementById('lineAbi');
+  const main = document.getElementById('mainAbi');
+  const suffixShort = document.getElementById('suffixAbiShort');
+  const suffix = document.getElementById('suffixAbi');
+  
+  if (currentAbi) {
+    line.classList.add('active');
+    main.textContent = `「${currentAbi.main}」`;
+    suffixShort.textContent = '的能力，';
+    suffix.textContent = currentAbi.suffix;
+  } else {
+    line.classList.remove('active');
+    main.textContent = '「能力」';
+    suffixShort.textContent = '的能力，';
+    suffix.textContent = '';
+  }
+}
+
+function renderDimension() {
+  const line = document.getElementById('lineDim');
+  const main = document.getElementById('mainDim');
+  const suffix = document.getElementById('suffixDim');
+  
+  if (currentDim) {
+    line.classList.add('active');
+    main.textContent = `「${currentDim.main}」`;
+    suffix.textContent = `—— ${currentDim.suffix}`;
+  } else {
+    line.classList.remove('active');
+    main.textContent = '「问题」';
+    suffix.textContent = '—— ';
+  }
+}
+
+// 检测屏幕尺寸并调整桌面端渲染
+function checkScreenSizeAndRender() {
+  const isDesktop = window.innerWidth >= 601;
+  
+  if (isDesktop) {
+    // 桌面端：把短后缀和长后缀合并
+    if (currentAbi) {
+      document.getElementById('suffixAbiShort').textContent = '';
+      document.getElementById('suffixAbi').textContent = `的能力，${currentAbi.suffix}`;
+    }
+    if (currentPer) {
+      document.getElementById('suffixPerShort').textContent = '';
+      document.getElementById('suffixPer').textContent = `一样，${currentPer.suffix}`;
+    }
+  } else {
+    // 手机端：正常渲染
+    renderAbility();
+    renderPersona();
+  }
+}
+
+// 窗口大小变化时重新渲染
+window.addEventListener('resize', checkScreenSizeAndRender);
+
+// ====== 动作 ======
+function drawDimension() {
+  if (dimensionDeck.length === 0) return;
+  shakeLine('lineDim');
+  setTimeout(() => {
+    const result = randomFromDeck(dimensionDeck, drawnDimIndices);
+    currentDim = result ? result.item : null;
+    renderDimension();
+    checkScreenSizeAndRender();
+  }, 200);
+}
+
+function drawAbility() {
+  if (abilityDeck.length === 0) return;
+  shakeLine('lineAbi');
+  setTimeout(() => {
+    const result = randomFromDeck(abilityDeck, drawnAbiIndices);
+    currentAbi = result ? result.item : null;
+    renderAbility();
+    checkScreenSizeAndRender();
+  }, 200);
+}
+
+function drawPersona() {
+  if (personaDeck.length === 0) return;
+  shakeLine('linePer');
+  setTimeout(() => {
+    const result = randomFromDeck(personaDeck, drawnPerIndices);
+    currentPer = result ? result.item : null;
+    renderPersona();
+    checkScreenSizeAndRender();
+  }, 200);
+}
+
+function drawAll() {
+  drawDimension();
+  drawAbility();
+  drawPersona();
+}
+
+// ====== 初始化 ======
+drawAll();
+// 初始化后也调用一次屏幕检测
+setTimeout(checkScreenSizeAndRender, 250);
+</script>
+</body>
+</html>
